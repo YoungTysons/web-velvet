@@ -134,8 +134,8 @@ const createOrder = async (req, res) => {
           orderCode: numericOrderCode,
           amount: Math.round(Number(totalAmount)),
           description: `Don hang ${numericOrderCode}`.slice(0, 25),
-          returnUrl: "http://localhost:5173/#checkout",
-          cancelUrl: "http://localhost:5173/#checkout",
+          returnUrl: "https://web-velvet.vercel.app/#checkout",
+          cancelUrl: "https://web-velvet.vercel.app/#checkout",
         });
 
         payosData = {

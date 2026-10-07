@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const axiosClient = axios.create({
-  baseURL: "http://localhost:8080/api",
+  baseURL: "https://web-velvet.vercel.app/api",
   headers: {
     "Content-Type": "application/json",
   },
