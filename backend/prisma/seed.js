@@ -161,6 +161,139 @@ async function main() {
     }
   }
 
+  // 3. Seed Danh Mục (Categories)
+  console.log("📂 Đang nạp danh mục thức uống...");
+  const categoriesData = [
+    { slug: "coffee", name: "Cà phê", icon: "☕", description: "12 món mộc & phin", displayOrder: 1 },
+    { slug: "milktea", name: "Trà sữa", icon: "◉", description: "16 loại trà lá ủ", displayOrder: 2 },
+    { slug: "fruittea", name: "Trà trái cây", icon: "✦", description: "Trái cây tươi Đà Lạt", displayOrder: 3 },
+    { slug: "special", name: "Đá xay Frost", icon: "❄", description: "Cacao béo mượt", displayOrder: 4 },
+    { slug: "freshjuice", name: "Nước ép tươi", icon: "◌", description: "Ép lạnh giữ vitamin", displayOrder: 5 },
+    { slug: "toppings", name: "Topping thủ công", icon: "✣", description: "Nấu mới mỗi 4 giờ", displayOrder: 6 },
+  ];
+
+  for (const c of categoriesData) {
+    await prisma.category.upsert({
+      where: { slug: c.slug },
+      update: { name: c.name, icon: c.icon, description: c.description, displayOrder: c.displayOrder },
+      create: c,
+    });
+  }
+
+  // 4. Seed Mã Khuyến Mãi (Vouchers)
+  console.log("🎟 Đang nạp mã voucher ưu đãi...");
+  const vouchersData = [
+    {
+      code: "VELVETNEW",
+      title: "Ưu đãi thành viên mới",
+      description: "Giảm ngay 20.000đ cho đơn hàng đầu tiên tại Velvet & Brew",
+      discountType: "FIXED",
+      discountValue: 20000,
+      minOrderAmount: 50000,
+      endDate: new Date("2027-12-31T23:59:59Z"),
+      isActive: true,
+    },
+    {
+      code: "FREESHIP",
+      title: "Miễn phí vận chuyển",
+      description: "Freeship tối đa 25.000đ cho đơn hàng từ 100.000đ",
+      discountType: "FREESHIP",
+      discountValue: 25000,
+      minOrderAmount: 100000,
+      endDate: new Date("2027-12-31T23:59:59Z"),
+      isActive: true,
+    },
+    {
+      code: "VELVET50",
+      title: "Đặc quyền Velvet Club Gold",
+      description: "Giảm 50.000đ cho đơn hàng hội viên từ 150.000đ",
+      discountType: "FIXED",
+      discountValue: 50000,
+      minOrderAmount: 150000,
+      endDate: new Date("2027-12-31T23:59:59Z"),
+      isActive: true,
+    },
+  ];
+
+  for (const v of vouchersData) {
+    await prisma.voucher.upsert({
+      where: { code: v.code },
+      update: {
+        title: v.title,
+        description: v.description,
+        discountType: v.discountType,
+        discountValue: v.discountValue,
+        minOrderAmount: v.minOrderAmount,
+        endDate: v.endDate,
+        isActive: v.isActive,
+      },
+      create: v,
+    });
+  }
+
+  // 5. Seed Kho Nguyên Liệu (Inventory Items)
+  console.log("📦 Đang nạp kho nguyên liệu cảnh báo...");
+  const inventoryData = [
+    {
+      name: "Hạt Arabica Cầu Đất",
+      subTitle: "Rang vừa (Medium Roast)",
+      category: "RAW",
+      currentStock: 4.5,
+      minStock: 10,
+      unit: "kg",
+      status: "LOW_STOCK",
+    },
+    {
+      name: "Sữa tươi Dalat Milk",
+      subTitle: "Thanh trùng nguyên kem",
+      category: "MILK",
+      currentStock: 12,
+      minStock: 20,
+      unit: "hộp",
+      status: "IN_STOCK",
+    },
+    {
+      name: "Cốt Trà Oolong Mộc",
+      subTitle: "Ủ lạnh 16h thủ công",
+      category: "TEA",
+      currentStock: 2.8,
+      minStock: 5,
+      unit: "Lít",
+      status: "LOW_STOCK",
+    },
+  ];
+
+  for (const inv of inventoryData) {
+    const existing = await prisma.inventoryItem.findFirst({ where: { name: inv.name } });
+    if (existing) {
+      await prisma.inventoryItem.update({
+        where: { id: existing.id },
+        data: inv,
+      });
+    } else {
+      await prisma.inventoryItem.create({ data: inv });
+    }
+  }
+
+  // 6. Seed Cài Đặt Hệ Thống (Store Settings)
+  console.log("⚙️ Đang nạp cấu hình hệ thống...");
+  const settingsData = [
+    { key: "STORE_HOURS", value: "Thứ Hai - Chủ Nhật: 07:00 - 22:30", description: "Giờ mở cửa phục vụ" },
+    { key: "HOTLINE", value: "+84 (0) 24 3828 9999", description: "Hotline chăm sóc khách hàng" },
+    { key: "FLAGSHIP_ADDRESS", value: "124 Phố Cổ, Quận Hoàn Kiếm, Hà Nội", description: "Địa chỉ cửa hàng chính" },
+    { key: "DELIVERY_RADIUS_KM", value: "5.0", description: "Bán kính giao hàng tối đa (km)" },
+    { key: "TARGET_DELIVERY_MINS", value: "20", description: "Thời gian giao hàng mục tiêu (phút)" },
+    { key: "DEFAULT_SHIPPING_FEE", value: "25000", description: "Phí vận chuyển tiêu chuẩn" },
+  ];
+
+  for (const s of settingsData) {
+    await prisma.storeSetting.upsert({
+      where: { key: s.key },
+      update: { value: s.value, description: s.description },
+      create: s,
+    });
+  }
+
   const count = await prisma.product.count();
   console.log(`✅ Thành công! Hiện có ${count} sản phẩm trong database.`);
 }
@@ -172,3 +305,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

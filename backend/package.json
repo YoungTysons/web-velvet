@@ -4,11 +4,13 @@
   "description": "",
   "main": "src/server.js",
   "scripts": {
+    "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "migrate": "node ./node_modules/prisma/build/index.js migrate dev --schema=./src/models/prisma/schema.prisma",
-    "studio": "node ./node_modules/prisma/build/index.js studio --schema=./src/models/prisma/schema.prisma",
+    "migrate": "npx prisma migrate dev",
+    "studio": "npx prisma studio",
     "seed": "node prisma/seed.js"
   },
+  
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -28,5 +30,8 @@
   "devDependencies": {
     "nodemon": "^3.1.14",
     "prisma": "5.22.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }

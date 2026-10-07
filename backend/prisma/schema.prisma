@@ -1,0 +1,417 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// 1. TÀI KHOẢN & NGƯỜI DÙNG
+// ==========================================
+
+enum Role {
+  CUSTOMER
+  ADMIN
+  STAFF
+}
+
+enum MembershipTier {
+  MEMBER
+  SILVER
+  GOLD
+  DIAMOND
+}
+
+model User {
+  id              Int                 @id @default(autoincrement())
+  email           String?             @unique
+  phoneNumber     String?              @unique // Đặt cafe thường ưu tiên đăng nhập/xác nhận bằng SĐT
+  password        String              // Hash password (bcrypt/argon2)
+  fullName        String
+  avatar          String?             @db.Text
+  role            Role                @default(CUSTOMER)
+  gender          String?             @db.VarChar(10)
+  nickname        String?             @db.VarChar(50)
+  birthDate       DateTime?           // Ngày sinh nhận ưu đãi sinh nhật
+  brewPoints      Int                 @default(0) // Điểm tích lũy Hạt Brew (hiển thị trên app và quy đổi voucher)
+  membershipTier  MembershipTier      @default(SILVER) // Hạng hội viên: MEMBER, SILVER, GOLD, DIAMOND
+  isActive        Boolean             @default(true) // Trạng thái hoạt động tài khoản (Admin quản lý)
+
+  addresses       Address[]
+  orders          Order[]
+  reviews         Review[]
+  userVouchers    UserVoucher[]
+  pointHistory    PointTransaction[]
+  notifications   Notification[]
+  staffProfile    StaffProfile?
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+}
+
+// Địa chỉ nhận hàng (khách có thể lưu nhiều địa chỉ: Nhà, Công ty...)
+model Address {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  recipientName String   // Tên người nhận
+  phoneNumber   String   // SĐT nhận hàng
+  street        String   // Số nhà, tên đường, tòa nhà
+  ward          String?  // Phường / Xã
+  district      String?  // Quận / Huyện
+  city          String   // Tỉnh / Thành phố
+  
+  note          String?  // Ghi chú giao hàng cho tài xế
+  label         String?  @default("HOME") // "HOME" (Nhà riêng), "OFFICE" (Văn phòng), "OTHER" (Khác)
+  isDefault     Boolean  @default(false)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orders        Order[]
+}
+
+// ==========================================
+// 2. ĐƠN HÀNG (ORDER)
+// ==========================================
+
+enum OrderStatus {
+  PENDING     // Chờ xác nhận
+  PREPARING   // Đang pha chế
+  PREPARED    // Đã pha chế xong
+  DELIVERING  // Đang vận chuyển
+  COMPLETED   // Hoàn tất / Thành công
+  CANCELLED   // Đã hủy
+}
+
+enum DeliveryType {
+  DELIVERY    // Giao hàng tận nơi
+  PICKUP      // Lấy tại quầy / Mang đi (Takeaway)
+}
+
+model Order {
+  id              Int          @id @default(autoincrement())
+  orderCode       String       @unique // Mã đơn dạng: CF-20260917-001 hoặc VB-98241
+  
+  // Khách hàng
+  userId          Int?         // Cho phép null nếu hỗ trợ khách vãng lai (guest checkout)
+  user            User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Địa chỉ giao hàng đã chọn
+  addressId       Int?
+  address         Address?     @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  shippingAddress String       // Snapshot lại địa chỉ dạng text
+
+  // Hình thức nhận hàng
+  deliveryType    DeliveryType @default(DELIVERY)
+
+  // Tiền & Khuyến mãi
+  subtotal        Decimal      @db.Decimal(10, 2) // Tiền hàng
+  shippingFee     Decimal      @default(0) @db.Decimal(10, 2) // Phí ship
+  discountAmount  Decimal      @default(0) @db.Decimal(10, 2) // Tiền giảm giá voucher / ưu đãi
+  totalAmount     Decimal      @db.Decimal(10, 2) // Tổng thanh toán sau giảm giá
+  
+  // Voucher áp dụng
+  voucherCode     String?      // Mã coupon áp dụng (VELVETNEW, FREESHIP,...)
+  voucherId       Int?
+  voucher         Voucher?     @relation(fields: [voucherId], references: [id], onDelete: SetNull)
+
+  // Điểm tích lũy nhận được
+  brewPointsEarned Int         @default(0) // Số hạt Brew tích lũy được từ đơn này
+
+  // Trạng thái & Thanh toán
+  status          OrderStatus  @default(PENDING)
+  paymentMethod   String       @default("COD") // COD, MOMO, PAYOS, VIETQR, VISA
+  isPaid          Boolean      @default(false)
+  note            String?      // Ghi chú đơn: "Giao trước 10h, bấm chuông"
+  cancelReason    String?      // Lý do hủy đơn nếu có
+
+  // Thông tin tài xế giao hàng (Live Delivery Tracking)
+  driverName      String?
+  driverPhone     String?
+  driverPlate     String?
+
+  // Thông tin xuất hóa đơn VAT (tuỳ chọn)
+  vatRequired     Boolean      @default(false)
+  vatCompany      String?
+  vatTaxCode      String?
+  vatAddress      String?
+
+  items           OrderItem[]
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+// ==========================================
+// 3. CHI TIẾT TỪNG MÓN TRONG ĐƠN (ORDER ITEM)
+// ==========================================
+
+model OrderItem {
+  id          Int                @id @default(autoincrement())
+  
+  orderId     Int
+  order       Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  productId   Int
+  product     Product            @relation(fields: [productId], references: [id])
+  
+  quantity    Int                @default(1)
+  sizeName    String             // "Size M", "Size L", "Nóng giòn"
+  sizePrice   Decimal            @db.Decimal(10, 2) // 0, 6000, 12000
+  sweetness   String             // "70% đường", "Không đường", "Chuẩn"
+  ice         String             // "Chuẩn đá", "Ít đá", "Đá riêng"
+  note        String?            // Ghi chú riêng cho ly này (VD: "Ít ngọt, kem béo mặn", "Đá riêng")
+  unitPrice   Decimal            @db.Decimal(10, 2) // Giá 1 ly hoàn chỉnh sau khi cộng size + topping
+
+  toppings    OrderItemTopping[]
+}
+
+model OrderItemTopping {
+  id          Int       @id @default(autoincrement())
+  orderItemId Int
+  toppingId   Int
+  price       Decimal   @db.Decimal(10, 2) // Snapshot giá topping tại thời điểm mua
+
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  topping     Topping   @relation(fields: [toppingId], references: [id])
+}
+
+// ==========================================
+// 4. SẢN PHẨM, SIZE & TOPPING
+// ==========================================
+
+model Category {
+  id           Int       @id @default(autoincrement())
+  slug         String    @unique // coffee, milktea, fruittea, special, freshjuice, toppings
+  name         String    // Cà phê, Trà sữa, Trà trái cây...
+  icon         String?   // "☕", "◉", "✦", "❄", "◌", "✣"
+  description  String?
+  displayOrder Int       @default(0)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  products     Product[]
+}
+
+model Product {
+  id           Int              @id @default(autoincrement())
+  name         String
+  category     String           @default("coffee") // Slug danh mục đồng bộ với frontend
+  categoryId   Int?
+  categoryRel  Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  description  String?          @db.Text
+  basePrice    Decimal          @db.Decimal(10, 2)
+  image        String?          @db.Text
+  isBestSeller Boolean          @default(false)
+  isActive     Boolean          @default(true) // Ẩn/Hiện món
+  rating       Decimal?         @default(4.9) @db.Decimal(3, 1) // Điểm đánh giá (★ 4.9)
+  reviewCount  Int              @default(0) // Số lượt đánh giá
+
+  sizes        ProductSize[]
+  toppings     ProductTopping[]
+  orderItems   OrderItem[]
+  reviews      Review[]
+
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model ProductSize {
+  id         Int     @id @default(autoincrement())
+  name       String  // Size S, Size M, Size L
+  subText    String? // Tiêu chuẩn, +6.000đ, +12.000đ
+  extraPrice Decimal @default(0) @db.Decimal(10, 2) // 0, 6000, 12000
+
+  productId  Int
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Topping {
+  id         Int                @id @default(autoincrement())
+  name       String             // Trân châu đen, Kem Cheese,...
+  price      Decimal            @db.Decimal(10, 2)
+
+  products   ProductTopping[]
+  orderItems OrderItemTopping[]
+}
+
+model ProductTopping {
+  productId Int
+  toppingId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  topping   Topping @relation(fields: [toppingId], references: [id], onDelete: Cascade)
+
+  @@id([productId, toppingId])
+}
+
+// ==========================================
+// 5. KHUYẾN MÃI, MÃ GIẢM GIÁ & VÍ VOUCHER
+// ==========================================
+
+enum DiscountType {
+  FIXED      // Giảm tiền cố định: 20.000đ, 50.000đ
+  PERCENT    // Giảm theo %: 10%, 20%
+  FREESHIP   // Miễn phí vận chuyển
+}
+
+model Voucher {
+  id             Int          @id @default(autoincrement())
+  code           String       @unique // VELVETNEW, FREESHIP, VELVET50
+  title          String       // "Ưu đãi khách hàng mới", "Freeship đơn từ 100k"
+  description    String?      @db.Text
+  discountType   DiscountType @default(FIXED)
+  discountValue  Decimal      @db.Decimal(10, 2) // 20000 hoặc 10 (cho 10%)
+  minOrderAmount Decimal      @default(0) @db.Decimal(10, 2) // Đơn tối thiểu áp dụng
+  maxDiscount    Decimal?     @db.Decimal(10, 2) // Mức giảm tối đa nếu tính theo %
+  usageLimit     Int?         // Giới hạn lượt sử dụng toàn hệ thống
+  usedCount      Int          @default(0)
+  startDate      DateTime     @default(now())
+  endDate        DateTime     // Ngày hết hạn voucher
+  isActive       Boolean      @default(true)
+
+  orders         Order[]
+  userVouchers   UserVoucher[]
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+// Ví Voucher lưu trữ mã giảm giá của từng khách hàng
+model UserVoucher {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voucherId Int
+  voucher   Voucher   @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  
+  isUsed    Boolean   @default(false)
+  usedAt    DateTime?
+  
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, voucherId])
+}
+
+// ==========================================
+// 6. ĐIỂM THƯỞNG BREWPOINTS & LỊCH SỬ TÍCH LŨY
+// ==========================================
+
+enum PointTransactionType {
+  EARN    // Tích điểm từ đơn hàng
+  REDEEM  // Đổi điểm lấy voucher / đồ uống
+  REFUND  // Hoàn điểm khi hủy đơn
+  BONUS   // Tặng điểm thưởng sự kiện / sinh nhật
+  EXPIRE  // Hết hạn điểm
+}
+
+model PointTransaction {
+  id          Int                  @id @default(autoincrement())
+  userId      Int
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  points      Int                  // Số điểm thay đổi: +15, -100
+  type        PointTransactionType @default(EARN)
+  description String?              // "Tích điểm đơn hàng #VB-98241", "Đổi mã giảm giá 50k"
+  orderCode   String?              // Mã đơn hàng liên quan nếu có
+
+  createdAt   DateTime             @default(now())
+}
+
+// ==========================================
+// 7. ĐÁNH GIÁ SẢN PHẨM (REVIEWS)
+// ==========================================
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  rating    Int      @default(5) // 1 đến 5 sao
+  comment   String?  @db.Text
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// 8. THÔNG BÁO NGƯỜI DÙNG (NOTIFICATIONS)
+// ==========================================
+
+enum NotificationType {
+  ORDER        // Thông báo tiến độ đơn hàng
+  PROMOTION    // Thông báo khuyến mãi / Voucher mới
+  LOYALTY      // Thông báo tích điểm / nâng hạng hội viên
+  SYSTEM       // Thông báo hệ thống
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title     String
+  content   String           @db.Text
+  type      NotificationType @default(ORDER)
+  isRead    Boolean          @default(false)
+  link      String?          // URL dẫn đến đơn hàng hoặc voucher
+
+  createdAt DateTime         @default(now())
+}
+
+// ==========================================
+// 9. QUẢN LÝ KHO NGUYÊN LIỆU (INVENTORY)
+// ==========================================
+
+model InventoryItem {
+  id           Int      @id @default(autoincrement())
+  name         String   // "Hạt Arabica Cầu Đất", "Sữa tươi Dalat Milk", "Cốt Trà Oolong Mộc"
+  subTitle     String?  // "Rang vừa (Medium Roast)", "Thanh trùng nguyên kem", "Ủ lạnh 16h"
+  category     String   @default("RAW") // RAW, MILK, TEA, TOPPING_BASE, PACKAGING
+  currentStock Decimal  @db.Decimal(10, 2) // 4.5, 12, 2.8
+  minStock     Decimal  @db.Decimal(10, 2) // Ngưỡng cảnh báo: 10, 20
+  unit         String   // "kg", "hộp", "Lít", "túi"
+  status       String   @default("IN_STOCK") // "IN_STOCK", "LOW_STOCK", "CRITICAL"
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ==========================================
+// 10. NHÂN VIÊN & CA LÀM VIỆC (STAFF)
+// ==========================================
+
+model StaffProfile {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  staffCode    String   @unique // ST-001, ST-002...
+  position     String   @default("BARISTA") // BARISTA, SHIPPER, CASHIER, STORE_MANAGER
+  shift        String?  // Ca sáng (07h-15h), Ca chiều (15h-23h)
+  vehiclePlate String?  // Biển số xe đối với shipper
+  salary       Decimal? @db.Decimal(10, 2)
+  status       String   @default("ACTIVE") // ACTIVE, ON_LEAVE, RESIGNED
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ==========================================
+// 11. CÀI ĐẶT CỬA HÀNG & HỆ THỐNG
+// ==========================================
+
+model StoreSetting {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique // STORE_HOURS, HOTLINE, DELIVERY_RADIUS, DEFAULT_SHIPPING_FEE,...
+  value       String   @db.Text
+  description String?
+
+  updatedAt   DateTime @updatedAt
+}

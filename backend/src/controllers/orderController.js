@@ -16,9 +16,16 @@ const createOrder = async (req, res) => {
       shippingAddress,
       subtotal,
       shippingFee,
+      discountAmount,
       totalAmount,
       paymentMethod,
+      deliveryType,
+      voucherCode,
       note,
+      vatRequired,
+      vatCompany,
+      vatTaxCode,
+      vatAddress,
       items, // Mảng các món trong giỏ hàng
     } = req.body;
 
@@ -37,6 +44,9 @@ const createOrder = async (req, res) => {
       }
     }
 
+    // Tính điểm Brew tích lũy: 1 điểm cho mỗi 10.000đ
+    const pointsEarned = Math.max(0, Math.floor((Number(totalAmount) || 0) / 10000));
+
     // Lấy sản phẩm mặc định để làm fallback phòng khi id sản phẩm không hợp lệ
     const defaultProduct = await prisma.product.findFirst();
     const fallbackProductId = defaultProduct ? defaultProduct.id : 1;
@@ -46,22 +56,31 @@ const createOrder = async (req, res) => {
       data: {
         orderCode: orderCodeString,
         userId: validUserId,
-        shippingAddress: shippingAddress || "Lấy tại quán",
+        shippingAddress: shippingAddress || (deliveryType === "PICKUP" ? "Lấy tại quầy cửa hàng" : "Giao tận nơi"),
+        deliveryType: deliveryType === "PICKUP" || deliveryType === "pickup" || deliveryType === "TAKEAWAY" ? "PICKUP" : "DELIVERY",
         subtotal: Number(subtotal) || 0,
         shippingFee: Number(shippingFee) || 0,
+        discountAmount: Number(discountAmount) || 0,
         totalAmount: Number(totalAmount) || 0,
+        voucherCode: voucherCode || null,
+        brewPointsEarned: pointsEarned,
         paymentMethod: paymentMethod || "COD",
         status: "PENDING",
         isPaid: false,
         note: note || "",
+        vatRequired: Boolean(vatRequired),
+        vatCompany: vatCompany || null,
+        vatTaxCode: vatTaxCode || null,
+        vatAddress: vatAddress || null,
         items: {
           create: (items || []).map((item) => ({
             productId: Number(item.productId) && Number(item.productId) > 0 ? Number(item.productId) : fallbackProductId,
             quantity: Number(item.quantity) || 1,
-            sizeName: item.sizeName || "Size M",
+            sizeName: item.sizeName || item.size || "Size M",
             sizePrice: Number(item.sizePrice) || 0,
-            sweetness: item.sweetness || "100%",
-            ice: item.ice || "100%",
+            sweetness: item.sweetness || item.sugar || "100%",
+            ice: item.ice || "Chuẩn đá",
+            note: item.note || null,
             unitPrice: Number(item.unitPrice) || 0,
             toppings: item.toppings && item.toppings.length > 0 ? {
               create: item.toppings.map((tp) => ({
@@ -80,6 +99,32 @@ const createOrder = async (req, res) => {
         },
       },
     });
+
+    // 2.1 Nếu khách hàng đã đăng nhập, tự động tích lũy hạt Brew và ghi nhận lịch sử giao dịch điểm
+    if (validUserId && pointsEarned > 0) {
+      try {
+        await prisma.user.update({
+          where: { id: validUserId },
+          data: {
+            brewPoints: {
+              increment: pointsEarned,
+            },
+          },
+        });
+
+        await prisma.pointTransaction.create({
+          data: {
+            userId: validUserId,
+            points: pointsEarned,
+            type: "EARN",
+            orderCode: orderCodeString,
+            description: `Tích lũy điểm hạt Brew từ đơn hàng #${orderCodeString}`,
+          },
+        });
+      } catch (pointErr) {
+        console.warn("Lỗi cộng điểm hội viên:", pointErr.message);
+      }
+    }
 
     // 3. Xử lý trường hợp khách chọn thanh toán online PayOS / VietQR
     let payosData = null;

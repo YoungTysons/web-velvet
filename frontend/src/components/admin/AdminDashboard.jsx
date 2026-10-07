@@ -1,10 +1,69 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import logoIcon from "../../assets/logo-icon.png";
+import adminApi from "../../api/adminApi";
 
 export default function AdminDashboard({ user, onBackToStore }) {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [period, setPeriod] = useState("today");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Dữ liệu doanh thu & thống kê từ Backend
+  const [revenueData, setRevenueData] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    completedRevenue: 0,
+    completedOrders: 0,
+  });
+  const [userData, setUserData] = useState({
+    totalUsers: 0,
+    newUsers: 0,
+    allAccounts: 0,
+  });
+  const [menuStats, setMenuStats] = useState({
+    activeCount: 0,
+    totalCount: 0,
+    inactiveCount: 0,
+  });
+  const [loadingRevenue, setLoadingRevenue] = useState(false);
+
+  // Gọi API lấy doanh thu, người dùng và thực đơn mỗi khi thay đổi kỳ thời gian
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        setLoadingRevenue(true);
+        const [revRes, userRes, menuRes] = await Promise.all([
+          adminApi.getRevenueStats({
+            period: period === "custom" ? "all" : period,
+          }),
+          adminApi.getUsers({
+            period: period === "custom" ? "all" : period,
+          }),
+          adminApi.getMenuStats(),
+        ]);
+
+        if (revRes && revRes.success && revRes.data) {
+          setRevenueData(revRes.data);
+        }
+        if (userRes && userRes.success && userRes.data) {
+          setUserData(userRes.data);
+        }
+        if (menuRes && menuRes.success) {
+          const mData = menuRes.data || {};
+          setMenuStats({
+            activeCount: mData.activeCount ?? menuRes.menuCount ?? 0,
+            totalCount: mData.totalCount ?? menuRes.menuCount ?? 0,
+            inactiveCount: mData.inactiveCount ?? 0,
+          });
+        }
+      } catch (error) {
+        console.error("Lỗi khi tải thống kê dashboard:", error);
+      } finally {
+        setLoadingRevenue(false);
+      }
+    };
+
+    fetchDashboardStats();
+  }, [period]);
 
   // Dữ liệu đơn hàng gần đây
   const [orders, setOrders] = useState([
@@ -424,7 +483,11 @@ export default function AdminDashboard({ user, onBackToStore }) {
                         Tổng Doanh Thu
                       </span>
                       <div className="font-headline-md text-headline-md text-primary mt-space-2xs tracking-tight font-bold">
-                        185.420.000
+                        {loadingRevenue ? (
+                          <span className="text-body-md opacity-60">Đang tải...</span>
+                        ) : (
+                          Number(revenueData.totalRevenue || 0).toLocaleString("vi-VN")
+                        )}
                         <span className="text-[15px] font-body-sm font-semibold ml-1">
                           đ
                         </span>
@@ -435,29 +498,6 @@ export default function AdminDashboard({ user, onBackToStore }) {
                         payments
                       </span>
                     </div>
-                  </div>
-                  <div className="mt-space-md pt-space-xs flex items-end justify-between">
-                    <div className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[16px] text-secondary font-bold">
-                        trending_up
-                      </span>
-                      <span className="font-label-md text-label-md text-secondary font-bold">
-                        +14.8%
-                      </span>
-                      <span className="font-body-sm text-body-sm text-on-surface-variant">
-                        vs tháng trước
-                      </span>
-                    </div>
-                    <svg
-                      className="w-20 h-7 text-secondary stroke-current fill-none stroke-[2.2] overflow-visible"
-                      viewBox="0 0 80 28"
-                    >
-                      <path
-                        d="M 2 24 Q 15 20, 24 22 T 44 14 T 62 16 T 78 4"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
                   </div>
                 </div>
 
@@ -470,7 +510,11 @@ export default function AdminDashboard({ user, onBackToStore }) {
                         Tổng Đơn Hàng
                       </span>
                       <div className="font-headline-md text-headline-md text-primary mt-space-2xs tracking-tight font-bold">
-                        1.428{" "}
+                        {loadingRevenue ? (
+                          <span className="text-body-md opacity-60">...</span>
+                        ) : (
+                          Number(revenueData.totalOrders || 0).toLocaleString("vi-VN")
+                        )}{" "}
                         <span className="text-[15px] font-body-sm font-normal text-on-surface-variant">
                           đơn
                         </span>
@@ -479,24 +523,6 @@ export default function AdminDashboard({ user, onBackToStore }) {
                     <div className="w-10 h-10 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center shadow-sm">
                       <span className="material-symbols-outlined text-[20px]">
                         receipt_long
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-space-md pt-space-xs flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[16px] text-secondary font-bold">
-                        trending_up
-                      </span>
-                      <span className="font-label-md text-label-md text-secondary font-bold">
-                        +8.2%
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 bg-surface-container px-space-xs py-0.5 rounded-full">
-                      <span className="material-symbols-outlined text-[14px] text-on-surface-variant">
-                        check_circle
-                      </span>
-                      <span className="font-label-sm text-label-sm text-on-surface font-semibold">
-                        98.4% hoàn thành
                       </span>
                     </div>
                   </div>
@@ -511,39 +537,19 @@ export default function AdminDashboard({ user, onBackToStore }) {
                         Hội Viên Mới
                       </span>
                       <div className="font-headline-md text-headline-md text-primary mt-space-2xs tracking-tight font-bold">
-                        356{" "}
+                        {loadingRevenue ? (
+                          <span className="text-body-md opacity-60">...</span>
+                        ) : (
+                          Number(userData.totalUsers || 0).toLocaleString("vi-VN")
+                        )}{" "}
                         <span className="text-[14px] font-body-sm font-normal text-on-surface-variant">
-                          thành viên
+                          khách hàng
                         </span>
                       </div>
                     </div>
                     <div className="w-10 h-10 rounded-xl bg-surface-container-high text-primary flex items-center justify-center shadow-sm">
                       <span className="material-symbols-outlined text-[20px]">
                         loyalty
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-space-md pt-space-xs flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[16px] text-secondary font-bold">
-                        trending_up
-                      </span>
-                      <span className="font-label-md text-label-md text-secondary font-bold">
-                        +22.5%
-                      </span>
-                      <span className="font-body-sm text-body-sm text-on-surface-variant">
-                        Velvet Club
-                      </span>
-                    </div>
-                    <div className="flex -space-x-1.5 overflow-hidden">
-                      <span className="inline-block h-6 w-6 rounded-full bg-tertiary-fixed text-[10px] font-bold flex items-center justify-center text-on-tertiary-fixed shadow-xs">
-                        V
-                      </span>
-                      <span className="inline-block h-6 w-6 rounded-full bg-secondary-fixed text-[10px] font-bold flex items-center justify-center text-on-secondary-fixed shadow-xs">
-                        B
-                      </span>
-                      <span className="inline-block h-6 w-6 rounded-full bg-primary-fixed text-[10px] font-bold flex items-center justify-center text-on-primary-fixed shadow-xs">
-                        +9
                       </span>
                     </div>
                   </div>
@@ -558,7 +564,11 @@ export default function AdminDashboard({ user, onBackToStore }) {
                         Menu Đang Phục Vụ
                       </span>
                       <div className="font-headline-md text-headline-md text-primary mt-space-2xs tracking-tight font-bold">
-                        48{" "}
+                        {loadingRevenue ? (
+                          <span className="text-body-md opacity-60">...</span>
+                        ) : (
+                          menuStats.activeCount
+                        )}{" "}
                         <span className="text-[14px] font-body-sm font-normal text-on-surface-variant">
                           món active
                         </span>
@@ -571,12 +581,12 @@ export default function AdminDashboard({ user, onBackToStore }) {
                     </div>
                   </div>
                   <div className="mt-space-md pt-space-xs flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 bg-error-container/70 text-on-error-container px-space-xs py-0.5 rounded-full">
-                      <span className="material-symbols-outlined text-[14px] text-error font-bold">
-                        warning
+                    <div className="flex items-center gap-1.5 bg-secondary-container/60 text-on-secondary-container px-space-xs py-0.5 rounded-full">
+                      <span className="material-symbols-outlined text-[14px] text-secondary font-bold">
+                        check_circle
                       </span>
                       <span className="font-label-sm text-label-sm font-bold">
-                        3 món sắp hết cốt
+                        {menuStats.totalCount} tổng số món
                       </span>
                     </div>
                     <span

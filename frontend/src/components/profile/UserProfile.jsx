@@ -189,8 +189,11 @@ export default function UserProfile({
     note: dbOrder.note || "",
     subtotal: Number(dbOrder.subtotal) || Number(dbOrder.totalAmount) || 0,
     shippingFee: Number(dbOrder.shippingFee) || 0,
+    discountAmount: Number(dbOrder.discountAmount) || 0,
     totalAmount: Number(dbOrder.totalAmount) || 0,
-    brewPoints: Math.max(1, Math.round((Number(dbOrder.totalAmount) || 0) / 10000)),
+    voucherCode: dbOrder.voucherCode || null,
+    deliveryType: dbOrder.deliveryType || "DELIVERY",
+    brewPoints: Number(dbOrder.brewPointsEarned) || Math.max(1, Math.round((Number(dbOrder.totalAmount) || 0) / 10000)),
     deliveryTimeEstimate:
       dbOrder.status === "DELIVERING"
         ? "Tài xế đang giao (10-15 phút)"

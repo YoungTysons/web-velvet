@@ -157,10 +157,13 @@ const getProfile = async (req, res) => {
         avatar: true,
         role: true,
         nickname: true,
+        birthDate: true,
+        brewPoints: true,
+        membershipTier: true,
+        isActive: true,
         addresses: {
           orderBy: { isDefault: 'desc' }
         },
-
         createdAt: true,
       },
     });
@@ -176,7 +179,7 @@ const getProfile = async (req, res) => {
 };
 const updateProfile = async (req, res) => {
   try {
-    const { fullName, nickname, gender, email, phoneNumber, avatar } = req.body;
+    const { fullName, nickname, gender, email, phoneNumber, avatar, birthDate } = req.body;
     const userId = req.user.id;
     const updateProfile = await prisma.user.update({
       where: { id: userId },
@@ -186,7 +189,8 @@ const updateProfile = async (req, res) => {
         gender: gender,
         email: email,
         phoneNumber: phoneNumber,
-        avatar: avatar
+        avatar: avatar,
+        ...(birthDate ? { birthDate: new Date(birthDate) } : {}),
       },
       select: {
         id: true,
@@ -197,6 +201,9 @@ const updateProfile = async (req, res) => {
         gender: true,
         avatar: true,
         role: true,
+        birthDate: true,
+        brewPoints: true,
+        membershipTier: true,
         createdAt: true,
       }
     });
@@ -231,7 +238,7 @@ const googleLogin = async (req, res) => {
     })
 
     if (!user) {
-      let randomPhone = "0123456789"
+      // let randomPhone = "0123456789"
 
       const hashedPassword = await bcrypt.hash("google_" + Date.now(), 10);
       user = await prisma.user.create({
@@ -240,7 +247,7 @@ const googleLogin = async (req, res) => {
           fullName: fullName,
           avatar: avatar,
           role: "CUSTOMER",
-          phoneNumber: randomPhone,   // Phải là String và không trùng lặp
+          phoneNumber: null,   // Phải là String và không trùng lặp
           password: hashedPassword,
         }
       })

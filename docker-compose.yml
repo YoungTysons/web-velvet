@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # ---------------- MySQL Database ----------------
+  mysql_db:
+    image: mysql:8.0
+    container_name: fullstack_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password_123
+      MYSQL_DATABASE: cafe_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -proot_password_123 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ---------------- phpMyAdmin (Quản lý DB qua Web) ----------------
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: fullstack_pma
+    restart: always
+    environment:
+      PMA_HOST: mysql_db
+      PMA_PORT: 3306
+    ports:
+      - "8081:80"   # Đổi port máy host sang 8081 để không đụng cổng 8080 của Backend
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+
+  # ---------------- Backend (Express + Prisma) ----------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fullstack_backend
+    restart: always
+    env_file:
+      - ./backend/.env   # Kế thừa các biến Cloudinary, JWT, PayOS...
+    environment:
+      PORT: 8080
+      DATABASE_URL: "mysql://root:root_password_123@mysql_db:3306/cafe_db"
+    ports:
+      - "8080:8080"      # Frontend gọi API qua localhost:8080/api
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+  # ---------------- Frontend (React + Vite) ----------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fullstack_frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  mysql_data:
+    driver: local

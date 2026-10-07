@@ -309,11 +309,18 @@ export default function CheckoutModal({
           deliveryMethod === "delivery"
             ? `${streetAddress}, ${district}, ${city}`
             : "Nhận tại quầy cửa hàng",
+        deliveryType: deliveryMethod === "pickup" ? "PICKUP" : "DELIVERY",
         subtotal: subtotal,
         shippingFee: baseShippingFee - shippingDiscount,
+        discountAmount: totalSavings || 0,
         totalAmount: grandTotal,
+        voucherCode: appliedCoupons.map((c) => c.code).join(", ") || null,
         paymentMethod: paymentMethod, // "vietqr" | "cod" | "card" | "wallet"
         note: deliveryNotes || "",
+        vatRequired: Boolean(vatRequired),
+        vatCompany: vatRequired ? vatCompany : null,
+        vatTaxCode: vatRequired ? vatTaxCode : null,
+        vatAddress: vatRequired ? vatAddress : null,
         items: displayItems.map((item) => ({
           productId: item.id && !isNaN(item.id) ? Number(item.id) : 1, // Fallback ID sản phẩm
           quantity: item.quantity || 1,
@@ -321,6 +328,7 @@ export default function CheckoutModal({
           sizePrice: item.sizePrice || 0,
           sweetness: item.note || "Chuẩn vị",
           ice: "Chuẩn đá",
+          note: item.note || null,
           toppings: (item.toppings || []).map((t) => ({
             id: t.id,
             name: t.name || t.label,
