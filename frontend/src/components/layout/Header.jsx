@@ -233,33 +233,31 @@ export default function Header({
             </button>
           )}
 
-          {/* KHI CHƯA ĐĂNG NHẬP: HIỂN THỊ NÚT ĐĂNG NHẬP */}
+          {/* KHI CHƯA ĐĂNG NHẬP: HIỂN THỊ NÚT ĐĂNG NHẬP DẠNG ICON */}
           {!user ? (
             <button
               onClick={onOpenAuth}
               title="Đăng nhập tài khoản"
               type="button"
               style={{
-                height: "36px",
-                padding: "0 16px",
-                borderRadius: "18px",
+                width: "37px",
+                height: "37px",
+                minWidth: "37px",
+                borderRadius: "50%",
                 background: "#271310",
                 color: "#ffffff",
                 border: "none",
-                fontSize: "12.5px",
-                fontWeight: "600",
                 cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "6px",
+                justifyContent: "center",
                 boxShadow: "0 2px 8px rgba(39, 19, 16, 0.15)",
-                transition: "opacity 0.15s ease",
+                transition: "transform 0.15s ease, opacity 0.15s ease",
               }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: "17px" }}>
-                login
+              <span className="material-symbols-outlined" style={{ fontSize: "21px" }}>
+                person
               </span>
-              <span>Đăng nhập</span>
             </button>
           ) : (
             /* KHI ĐÃ ĐĂNG NHẬP: AVATAR & DROPDOWN MENU */
