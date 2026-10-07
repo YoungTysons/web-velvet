@@ -130,12 +130,13 @@ const createOrder = async (req, res) => {
     let payosData = null;
     if (paymentMethod === "vietqr" || paymentMethod === "PAYOS") {
       try {
+        const clientUrl = process.env.CLIENT_URL || "https://web-velvet.vercel.app";
         const paymentRes = await payOS.paymentRequests.create({
           orderCode: numericOrderCode,
           amount: Math.round(Number(totalAmount)),
           description: `Don hang ${numericOrderCode}`.slice(0, 25),
-          returnUrl: "https://web-velvet.vercel.app/#checkout",
-          cancelUrl: "https://web-velvet.vercel.app/#checkout",
+          returnUrl: `${clientUrl}/#checkout`,
+          cancelUrl: `${clientUrl}/#checkout`,
         });
 
         payosData = {

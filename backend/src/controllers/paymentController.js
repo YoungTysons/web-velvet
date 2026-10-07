@@ -15,12 +15,13 @@ const createPaymentLink = async (req, res) => {
         // orderCode của PayOS phải là số nguyên dương duy nhất (tối đa 9007199254740991)
         const orderCode = Number(String(Date.now()).slice(-6));
 
+        const clientUrl = process.env.CLIENT_URL || "https://web-velvet.vercel.app";
         const paymentData = {
             orderCode: orderCode,
             amount: Number(amount) || 20000,
             description: (description || `Don hang ${orderCode}`).slice(0, 25), // PayOS giới hạn tối đa 25 ký tự
-            returnUrl: "http://localhost:5173/#checkout", // URL khi khách hoàn tất trên web
-            cancelUrl: "http://localhost:5173/#checkout",  // URL khi khách hủy
+            returnUrl: `${clientUrl}/#checkout`, // URL khi khách hoàn tất trên web
+            cancelUrl: `${clientUrl}/#checkout`,  // URL khi khách hủy
         };
 
         const paymentLinkRes = await payOS.paymentRequests.create(paymentData);
