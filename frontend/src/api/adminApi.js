@@ -13,6 +13,9 @@ const adminApi = {
   toggleProductActive: (id, isActive) => {
     return axiosClient.put(`/admin/products/${id}/toggle-active`, { isActive });
   },
+  getTopSelling: (params) => {
+    return axiosClient.get("/admin/stats/top-selling", { params });
+  },
 };
 
 export default adminApi;

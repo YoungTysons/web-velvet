@@ -14,7 +14,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -proot_password_123 || exit 1"]
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u root -proot_password_123 || exit 1" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -29,7 +29,7 @@ services:
       PMA_HOST: mysql_db
       PMA_PORT: 3306
     ports:
-      - "8081:80"   # Đổi port máy host sang 8081 để không đụng cổng 8080 của Backend
+      - "8081:80" # Đổi port máy host sang 8081 để không đụng cổng 8080 của Backend
     depends_on:
       mysql_db:
         condition: service_healthy
@@ -42,12 +42,12 @@ services:
     container_name: fullstack_backend
     restart: always
     env_file:
-      - ./backend/.env   # Kế thừa các biến Cloudinary, JWT, PayOS...
+      - ./backend/.env # Kế thừa các biến Cloudinary, JWT, PayOS...
     environment:
       PORT: 8080
-      DATABASE_URL: "mysql://root:root_password_123@mysql_db:3306/cafe_db"
+      # DATABASE_URL: "mysql://root:root_password_123@mysql_db:3306/cafe_db"
     ports:
-      - "8080:8080"      # Frontend gọi API qua localhost:8080/api
+      - "8080:8080" # Frontend gọi API qua localhost:8080/api
     depends_on:
       mysql_db:
         condition: service_healthy

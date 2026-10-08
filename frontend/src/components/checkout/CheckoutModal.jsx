@@ -151,7 +151,8 @@ export default function CheckoutModal({
   const [orderProcessing, setOrderProcessing] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
-  const [createdOrderCode, setCreatedOrderCode] = useState("#VB-9835");
+  const [createdOrderCode, setCreatedOrderCode] = useState(null);
+  const [createdOrderId, setCreatedOrderId] = useState(null);
 
   // Countdown timer cho QR Code (10 phút)
   const [qrCountdown, setQrCountdown] = useState(600);
@@ -346,6 +347,7 @@ export default function CheckoutModal({
           setPayosQrCode(response.payos.qrCode);
           setPayosOrderCode(response.payos.orderCode);
           setShowQRModal(true); // Mở popup QR
+          setCreatedOrderId(response.order.id);
         } else {
           // Nếu là COD hoặc phương thức khác: Hoàn tất đơn ngay
           setOrderSuccess(true);
@@ -361,6 +363,22 @@ export default function CheckoutModal({
 
 
 
+  };
+  // Xử lý khi khách bấm nút [X] hoặc "Đóng / Hủy" trên popup QR
+  const handleCancelQRPayment = async () => {
+    const isConfirmed = window.confirm("Bạn có chắc chắn muốn hủy thanh toán đơn hàng này không?");
+    if (!isConfirmed) return;
+
+    try {
+      if (createdOrderId) {
+        // Gọi API backend chuyển trạng thái đơn sang CANCELLED
+        await orderApi.cancelOrder(createdOrderId);
+      }
+    } catch (error) {
+      console.error("Lỗi khi hủy đơn hàng:", error);
+    } finally {
+      setShowQRModal(false); // Đóng popup QR
+    }
   };
 
   const handleCompleteVietQRPayment = () => {
@@ -931,8 +949,8 @@ export default function CheckoutModal({
                                       if (addr.note) setDeliveryNotes(addr.note);
                                     }}
                                     className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all ${isSelected
-                                        ? "bg-primary/5 border-primary shadow-xs ring-1 ring-primary/30"
-                                        : "bg-surface-container-lowest border-outline-variant/40 hover:border-primary/50"
+                                      ? "bg-primary/5 border-primary shadow-xs ring-1 ring-primary/30"
+                                      : "bg-surface-container-lowest border-outline-variant/40 hover:border-primary/50"
                                       }`}
                                   >
                                     <div className="flex items-center justify-between gap-1">
@@ -1015,8 +1033,8 @@ export default function CheckoutModal({
                           </label>
                           <input
                             className={`w-full bg-surface-container-low focus:bg-surface-container-lowest text-on-surface px-space-md py-space-xs rounded-lg font-body-md text-body-md outline-none transition-all shadow-inner border ${!streetAddress || !streetAddress.trim()
-                                ? "border-amber-400 focus:border-red-400"
-                                : "border-transparent focus:border-outline-variant"
+                              ? "border-amber-400 focus:border-red-400"
+                              : "border-transparent focus:border-outline-variant"
                               }`}
                             id="street-address"
                             placeholder="Vd: 124 Phố Hàng Trống, Tòa nhà Heritage..."
@@ -1695,7 +1713,7 @@ export default function CheckoutModal({
               </div>
               <button
                 className="w-8 h-8 rounded-full bg-surface-container-low hover:bg-surface-container flex items-center justify-center border-0 cursor-pointer text-on-surface-variant"
-                onClick={() => setShowQRModal(false)}
+                onClick={handleCancelQRPayment}
               >
                 ✕
               </button>
@@ -1788,7 +1806,7 @@ export default function CheckoutModal({
             <div className="flex gap-space-xs mt-space-xs">
               <button
                 type="button"
-                onClick={() => setShowQRModal(false)}
+                onClick={handleCancelQRPayment}
                 className="flex-1 py-space-xs rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md font-semibold border-0 cursor-pointer transition-colors"
               >
                 Hủy bỏ

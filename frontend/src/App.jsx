@@ -16,6 +16,7 @@ import ProductModal from "./components/product/ProductModal";
 import CartDrawer from "./components/cart/CartDrawer";
 import AuthModal from "./components/auth/AuthModal";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { CartProvider, useCart } from "./context/CartContext";
 import CheckoutModal from "./components/checkout/CheckoutModal";
 import AdminDashboard from "./components/admin/AdminDashboard";
 import UserProfile from "./components/profile/UserProfile";
@@ -23,6 +24,19 @@ import OrderHistory from "./components/profile/OrderHistory";
 
 function MainApp() {
   const { user, loading } = useAuth();
+  const {
+    cart,
+    setCart,
+    cartCount,
+    drawerOpen: drawer,
+    setDrawerOpen: setDrawer,
+    custom,
+    setCustom,
+    addToCart,
+    changeQuantity,
+    clearCart,
+  } = useCart();
+
   const [currentView, setCurrentView] = useState(
     window.location.hash === "#admin"
       ? "admin"
@@ -41,16 +55,6 @@ function MainApp() {
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selected, setSelected] = useState(null);
-  const [drawer, setDrawer] = useState(false);
-  const [cart, setCart] = useState([
-    { ...mockProducts[0], quantity: 1 },
-  ]);
-  const [custom, setCustom] = useState({
-    size: 0,
-    sugar: "70%",
-    ice: "Chuẩn",
-    toppings: [],
-  });
 
   useEffect(() => {
     fetchProducts()
@@ -79,49 +83,6 @@ function MainApp() {
     }
     return list;
   }, [filter, products, searchQuery]);
-
-  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-
-  const addToCart = (product, customConfig) => {
-    if (!product) return;
-    const cfg = customConfig || custom;
-    const sizeExtra = Number(cfg.size) || 0;
-    const sizeName = sizeExtra === 12000 ? "Size L" : sizeExtra === 6000 ? "Size M" : "Size S";
-    const toppingTotal = (cfg.toppings || []).reduce((sum, t) => sum + (Number(t.price) || 0), 0);
-    const basePrice = amount(product.price || product.basePrice) || 50000;
-    const finalUnitPrice = basePrice + sizeExtra + toppingTotal;
-    const cartItem = {
-      ...product,
-      cartItemId: `${product.id}-${Date.now()}`, // Mã phân biệt từng ly
-      size: sizeName,
-      sizePrice: sizeExtra,
-      sugar: cfg.sugar || "100%",
-      ice: cfg.ice || "Chuẩn",
-      toppings: cfg.toppings || [], // [{ id: 1, name: "Trân châu...", price: 5000 }]
-      unitPrice: finalUnitPrice,
-      quantity: 1,
-    };
-    setCart((current) => [...current, cartItem]);
-    setSelected(null);
-    setDrawer(true);
-    setCustom({
-      size: 0,
-      sugar: "70%",
-      ice: "Chuẩn",
-      toppings: [],
-    });
-  };
-
-  const changeQuantity = (id, change) => {
-    setCart((current) =>
-      current.flatMap((item) => {
-        const isMatch = item.cartItemId === id || item.id === id;
-        if (!isMatch) return [item];
-        if (item.quantity + change < 1) return [];
-        return [{ ...item, quantity: item.quantity + change }];
-      }),
-    );
-  };
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -414,7 +375,9 @@ function MainApp() {
 export default function App() {
   return (
     <AuthProvider>
-      <MainApp />
+      <CartProvider>
+        <MainApp />
+      </CartProvider>
     </AuthProvider>
   );
 }

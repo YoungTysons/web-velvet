@@ -5,6 +5,7 @@ const {
   getTotalUsers,
   getMenu,
   toggleProductActive,
+  getTopSellingProducts,
 } = require("../controllers/adminController");
 const authMiddleware = require("../middlewares/authMiddleware");
 const adminMiddleware = require("../middlewares/adminMiddleware");
@@ -17,6 +18,7 @@ router.get("/stats/menu", authMiddleware, adminMiddleware, getMenu);
 
 // Quản lý trạng thái món ăn (Ẩn/Hiện ở menu)
 router.put("/products/:id/toggle-active", authMiddleware, adminMiddleware, toggleProductActive);
+router.get("/stats/top-selling", authMiddleware, adminMiddleware, getTopSellingProducts);
 
 module.exports = router;
 

@@ -191,11 +191,107 @@ const toggleProductActive = async (req, res) => {
         });
     }
 };
+const getTopSellingProducts = async (req, res) => {
+    try {
+        const { period } = req.query; // 'today' | '7d' | 'month' | 'all'
+        let dateFilter = {};
+        const now = new Date();
+        if (period === "today") {
+            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            dateFilter = { createdAt: { gte: startOfDay } };
+        } else if (period === "7d") {
+            const past7Days = new Date();
+            past7Days.setDate(now.getDate() - 7);
+            past7Days.setHours(0, 0, 0, 0);
+            dateFilter = { createdAt: { gte: past7Days } };
+        } else if (period === "this_month" || period === "month") {
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            dateFilter = { createdAt: { gte: startOfMonth } };
+        }
+        const oderItems = await prisma.orderItem.findMany({
+            where: {
+                order: {
+                    status: { not: "CANCELLED" },
+                    ...dateFilter,
+                },
+            },
+            include: {
+                product: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
+                toppings: {
+                    include: {
+                        topping: { select: { id: true, name: true } },
+                    },
+                },
+            },
+        });
+
+        const productMap = {};
+        oderItems.forEach((item) => {
+            const pId = item.productId || item.product?.id;
+            const pName = item.product?.name || "Món chưa đặt tên";
+            const qty = Number(item.quantity) || 1;
+
+            if (!productMap[pId]) {
+                productMap[pId] = {
+                    id: pId,
+                    name: pName,
+                    totalQuantity: 0,
+                    toppingsCount: {},
+                };
+            }
+            productMap[pId].totalQuantity += qty;
+
+            (item.toppings || []).forEach((t) => {
+                const tName = t.topping?.name;
+                if (tName) {
+                    productMap[pId].toppingsCount[tName] =
+                        (productMap[pId].toppingsCount[tName] || 0) + 1;
+                }
+            });
+        });
+
+        const sortedList = Object.values(productMap).sort(
+            (a, b) => b.totalQuantity - a.totalQuantity
+        );
+        
+        const maxCount = sortedList[0]?.totalQuantity || 1;
+        const result = sortedList.slice(0, 5).map((item, index) => ({
+            rank: index + 1,
+            id: item.id,
+            name: item.name,
+            soldCount: item.totalQuantity,
+            percentage: Math.min(100, Math.round((item.totalQuantity / maxCount) * 100)),
+            toppings: Object.entries(item.toppingsCount)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3)
+                .map(([name, count]) => ({
+                    name,
+                    percent: Math.round((count / item.totalQuantity) * 100),
+                })),
+        }));
+        return res.status(200).json({
+            success: true,
+            data: result,
+        });
+    } catch (error) {
+        console.error("Lỗi khi lấy top bán chạy:", error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Không thể lấy top bán chạy",
+        });
+    }
+}
 
 module.exports = {
     getRevenueStats,
     getTotalUsers,
     getMenu,
     toggleProductActive,
+    getTopSellingProducts,
 };
 

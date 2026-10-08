@@ -234,16 +234,16 @@ const cancelOrder = async (req, res) => {
         message: "Đơn hàng đang trên đường giao hoặc đã hoàn tất, không thể hủy!",
       });
     }
+    // Xóa các món trong đơn trước
+    await prisma.orderItem.deleteMany({ where: { orderId: Number(id) } });
+    // Xóa hẳn đơn hàng khỏi Database
+    await prisma.order.delete({ where: { id: Number(id) } });
 
-    const updated = await prisma.order.update({
-      where: { id: Number(id) },
-      data: { status: "CANCELLED" },
-    });
 
     return res.status(200).json({
       success: true,
       message: "Đã hủy đơn hàng thành công!",
-      order: updated,
+      order: null,
     });
   } catch (error) {
     console.error("Lỗi khi hủy đơn hàng:", error);
