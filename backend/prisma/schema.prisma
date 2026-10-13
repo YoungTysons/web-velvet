@@ -46,7 +46,7 @@ model User {
   pointHistory    PointTransaction[]
   notifications   Notification[]
   staffProfile    StaffProfile?
-
+conversation    Conversation? 
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 }
@@ -414,4 +414,26 @@ model StoreSetting {
   description String?
 
   updatedAt   DateTime @updatedAt
+}
+// Cuộc hội thoại giữa 1 khách hàng và Shop
+model Conversation {
+  id          Int       @id @default(autoincrement())
+  customerId  Int       @unique
+  customer    User      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lastMessage String?   @db.Text
+  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime  @default(now())
+  messages    Message[]
+}
+
+// Chi tiết từng tin nhắn chat
+model Message {
+  id             Int          @id @default(autoincrement())
+  conversationId Int
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       Int          // ID của người gửi (khách hoặc admin)
+  senderRole     String       // "CUSTOMER" hoặc "ADMIN"
+  content        String       @db.Text
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
 }

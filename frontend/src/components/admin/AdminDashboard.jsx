@@ -4,6 +4,7 @@ import adminApi from "../../api/adminApi";
 import orderApi from "../../api/orderApi";
 import { fetchProducts } from "../../api/productApi";
 import CustomerManagementTab from "./tabs/CustomerManagementTab";
+import CustomerCareTab from "./tabs/CustomerCareTab";
 import OrderManagementTab from "./tabs/OrderManagementTab";
 
 export default function AdminDashboard({ user, onBackToStore }) {
@@ -285,78 +286,89 @@ export default function AdminDashboard({ user, onBackToStore }) {
 
   const [productsList, setProductsList] = useState([]);
 
+  const [savingProduct, setSavingProduct] = useState(false);
+
   // Tải danh sách món từ database
-  useEffect(() => {
-    fetchProducts()
-      .then((res) => {
-        if (res && Array.isArray(res)) {
-          const categoryNameMap = {
-            coffee: "Cà phê Specialty",
-            milktea: "Trà sữa & Trà nướng",
-            fruittea: "Trà trái cây nhiệt đới",
-            special: "Đá xay Velvet Frost",
-            toppings: "Topping thủ công",
-          };
-          const mapped = res.map((p) => {
-            const priceNum =
-              typeof p.price === "number"
+  const loadProducts = async () => {
+    try {
+      const res = await fetchProducts({ includeInactive: true });
+      if (res && Array.isArray(res)) {
+        const categoryNameMap = {
+          coffee: "Cà phê Specialty",
+          milktea: "Trà sữa & Trà nướng",
+          fruittea: "Trà trái cây nhiệt đới",
+          special: "Đá xay Velvet Frost",
+          freshjuice: "Nước ép tươi",
+          toppings: "Topping thủ công",
+        };
+        const mapped = res.map((p) => {
+          const priceNum =
+            typeof p.basePrice === "number"
+              ? p.basePrice
+              : typeof p.price === "number"
                 ? p.price
-                : parseInt(String(p.price || 0).replace(/\D/g, "")) || 0;
-            return {
-              id: p.id,
-              name: p.name,
-              sku:
-                p.sku ||
-                `VB-${(p.category || "CF").toUpperCase().slice(0, 3)}-${String(p.id).padStart(3, "0")}`,
-              category: p.category || "coffee",
-              categoryName: categoryNameMap[p.category] || "Cà phê Specialty",
-              price: priceNum ? priceNum.toLocaleString("vi-VN") + " đ" : "0 đ",
-              rawPrice: priceNum,
-              oldPrice: p.oldPrice
-                ? typeof p.oldPrice === "number"
-                  ? p.oldPrice.toLocaleString("vi-VN") + " đ"
-                  : p.oldPrice
-                : null,
-              soldCount: p.soldCount !== undefined ? String(p.soldCount) : "0",
-              soldTrend: p.soldTrend || "",
-              materialName: p.materialName || "Nguyên liệu chính",
-              materialStatus: p.materialStatus || "Đầy đủ",
-              materialPercent:
-                p.materialPercent !== undefined ? p.materialPercent : 100,
-              isActive: p.isActive !== false,
-              sizes: Array.isArray(p.sizes)
+                : parseInt(String(p.price || p.basePrice || 0).replace(/\D/g, "")) || 0;
+          return {
+            id: p.id,
+            name: p.name,
+            sku:
+              p.sku ||
+              `VB-${(p.category || "CF").toUpperCase().slice(0, 3)}-${String(p.id).padStart(3, "0")}`,
+            category: p.category || "coffee",
+            categoryId: p.categoryId,
+            categoryName: categoryNameMap[p.category] || "Cà phê Specialty",
+            price: priceNum ? priceNum.toLocaleString("vi-VN") + " đ" : "0 đ",
+            rawPrice: priceNum,
+            oldPrice: p.oldPrice
+              ? typeof p.oldPrice === "number"
+                ? p.oldPrice.toLocaleString("vi-VN") + " đ"
+                : p.oldPrice
+              : null,
+            soldCount: p.soldCount !== undefined ? String(p.soldCount) : "0",
+            soldTrend: p.soldTrend || (Number(p.soldCount) > 0 ? `+${p.soldCount} ly` : "Mới tạo"),
+            materialName: p.materialName || "Nguyên liệu chính",
+            materialStatus: p.materialStatus || "Đầy đủ",
+            materialPercent:
+              p.materialPercent !== undefined ? p.materialPercent : 100,
+            isActive: p.isActive !== false,
+            sizes: Array.isArray(p.sizes)
+              ? p.sizes
+                .map((s) => (typeof s === "object" ? s.name : String(s)))
+                .filter(Boolean)
+                .join(", ") || "Size: M, L"
+              : typeof p.sizes === "string"
                 ? p.sizes
-                  .map((s) => (typeof s === "object" ? s.name : String(s)))
-                  .filter(Boolean)
-                  .join(", ") || "Size: M, L"
-                : typeof p.sizes === "string"
-                  ? p.sizes
-                  : "Size: M, L",
-              toppings: Array.isArray(p.toppings)
-                ? p.toppings
-                  .map((t) =>
-                    typeof t === "object"
-                      ? t.topping?.name || t.name || ""
-                      : String(t),
-                  )
-                  .filter(Boolean)
-                : [],
-              image:
-                p.image ||
-                "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=700&q=85",
-              description: p.description || "",
-              isBestSeller: p.isBestSeller || false,
-              isNew: p.isNew || false,
-              tag: p.isBestSeller ? "Best Seller" : p.isNew ? "Mới" : null,
-              tagColor: p.isBestSeller
-                ? "bg-tertiary-fixed text-on-tertiary-fixed-variant"
-                : "bg-surface-container-high text-on-surface-variant",
-            };
-          });
-          setProductsList(mapped);
-        }
-      })
-      .catch((err) => console.warn("Lỗi tải món từ DB:", err));
+                : "Size: M, L",
+            toppings: Array.isArray(p.toppings)
+              ? p.toppings
+                .map((t) =>
+                  typeof t === "object"
+                    ? t.topping?.name || t.name || ""
+                    : String(t),
+                )
+                .filter(Boolean)
+              : [],
+            image:
+              p.image ||
+              "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=700&q=85",
+            description: p.description || "",
+            isBestSeller: p.isBestSeller || false,
+            isNew: p.isNew || false,
+            tag: p.isBestSeller ? "Best Seller" : p.isNew ? "Mới" : null,
+            tagColor: p.isBestSeller
+              ? "bg-tertiary-fixed text-on-tertiary-fixed-variant"
+              : "bg-surface-container-high text-on-surface-variant",
+          };
+        });
+        setProductsList(mapped);
+      }
+    } catch (err) {
+      console.warn("Lỗi tải món từ DB:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
   }, []);
 
   const handleToggleProductActive = async (id) => {
@@ -373,9 +385,21 @@ export default function AdminDashboard({ user, onBackToStore }) {
     }
   };
 
-  const handleDeleteProduct = (id) => {
-    if (confirm("Bạn có chắc chắn muốn xóa sản phẩm này khỏi thực đơn?")) {
-      setProductsList((prev) => prev.filter((p) => p.id !== id));
+  const handleDeleteProduct = async (id) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa sản phẩm này khỏi thực đơn?")) return;
+    try {
+      const res = await adminApi.deleteProduct(id);
+      if (res && res.success) {
+        if (res.isSoftDeleted) {
+          alert(res.message || "Món này đã có trong lịch sử đơn hàng nên được chuyển sang trạng thái Ẩn.");
+        } else {
+          alert("Xóa sản phẩm thành công!");
+        }
+        await loadProducts();
+      }
+    } catch (error) {
+      console.error("Lỗi khi xóa sản phẩm:", error);
+      alert(error.response?.data?.message || error.message || "Không thể xóa sản phẩm");
     }
   };
 
@@ -441,81 +465,72 @@ export default function AdminDashboard({ user, onBackToStore }) {
     setIsProductModalOpen(true);
   };
 
-  const handleSaveProduct = (e) => {
+  const handleSaveProduct = async (e) => {
     if (e) e.preventDefault();
     if (!productFormData.name.trim()) {
       alert("Vui lòng nhập tên sản phẩm!");
       return;
     }
-    if (editingProduct) {
-      setProductsList((prev) =>
-        prev.map((p) =>
-          p.id === editingProduct.id
-            ? {
-              ...p,
-              name: productFormData.name,
-              sku: productFormData.sku,
-              categoryName: productFormData.category,
-              category: productFormData.category.includes("Trà sữa")
-                ? "milktea"
-                : productFormData.category.includes("Trà trái cây")
-                  ? "fruittea"
-                  : productFormData.category.includes("Đá xay")
-                    ? "special"
-                    : productFormData.category.includes("Topping")
-                      ? "toppings"
-                      : "coffee",
-              price: `${productFormData.price} đ`,
-              description: productFormData.description,
-              image: productFormData.image || p.image,
-              isActive: productFormData.isActive,
-              tag: productFormData.isBestSeller
-                ? "Best Seller"
-                : productFormData.isNew
-                  ? "Mới"
-                  : null,
-              tagColor: "bg-tertiary-fixed text-on-tertiary-fixed-variant",
-            }
-            : p,
-        ),
-      );
-    } else {
-      const newProd = {
-        id: Date.now(),
-        name: productFormData.name,
-        sku: productFormData.sku || `VB-NEW-${Date.now().toString().slice(-3)}`,
-        category: productFormData.category.includes("Trà sữa")
-          ? "milktea"
-          : productFormData.category.includes("Trà trái cây")
-            ? "fruittea"
-            : productFormData.category.includes("Đá xay")
-              ? "special"
-              : productFormData.category.includes("Topping")
-                ? "toppings"
-                : "coffee",
-        categoryName: productFormData.category,
-        price: `${productFormData.price} đ`,
-        soldCount: "0",
-        soldTrend: "Mới tạo",
-        materialName: "Nguyên liệu chuẩn",
-        materialStatus: "Đầy đủ",
-        materialPercent: 100,
-        isActive: productFormData.isActive,
-        sizes: "Size: S, M, L",
-        image:
-          productFormData.image ||
-          "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=700&q=85",
-        description: productFormData.description,
-        tag: productFormData.isBestSeller
-          ? "Best Seller"
-          : productFormData.isNew
-            ? "Mới"
-            : null,
-        tagColor: "bg-tertiary-fixed text-on-tertiary-fixed-variant",
-      };
-      setProductsList((prev) => [newProd, ...prev]);
+
+    const priceNum = parseInt(String(productFormData.price || 0).replace(/\D/g, ""), 10) || 0;
+    if (priceNum <= 0) {
+      alert("Vui lòng nhập giá bán hợp lệ (> 0đ)!");
+      return;
     }
-    setIsProductModalOpen(false);
+
+    // Map categoryName sang slug
+    const catSlug = productFormData.category.includes("Trà sữa")
+      ? "milktea"
+      : productFormData.category.includes("Trà trái cây")
+        ? "fruittea"
+        : productFormData.category.includes("Đá xay")
+          ? "special"
+          : productFormData.category.includes("Nước ép")
+            ? "freshjuice"
+            : productFormData.category.includes("Topping")
+              ? "toppings"
+              : "coffee";
+
+    // Cấu hình sizes
+    const sizes = [];
+    if (productFormData.sizeS) sizes.push({ name: "Size S", subText: "Tiêu chuẩn", extraPrice: 0 });
+    if (productFormData.sizeM) sizes.push({ name: "Size M", subText: "+6.000đ", extraPrice: 6000 });
+    if (productFormData.sizeL) sizes.push({ name: "Size L", subText: "+12.000đ", extraPrice: 12000 });
+
+    const payload = {
+      name: productFormData.name.trim(),
+      category: catSlug,
+      basePrice: priceNum,
+      description: productFormData.description || "",
+      image: productFormData.image || "",
+      isBestSeller: Boolean(productFormData.isBestSeller),
+      isActive: Boolean(productFormData.isActive),
+      sizes: sizes.length > 0 ? sizes : undefined,
+    };
+
+    try {
+      setSavingProduct(true);
+      if (editingProduct) {
+        const res = await adminApi.updateProduct(editingProduct.id, payload);
+        if (res && res.success) {
+          alert("Cập nhật sản phẩm thành công!");
+          await loadProducts();
+          setIsProductModalOpen(false);
+        }
+      } else {
+        const res = await adminApi.createProduct(payload);
+        if (res && res.success) {
+          alert("Thêm sản phẩm mới thành công!");
+          await loadProducts();
+          setIsProductModalOpen(false);
+        }
+      }
+    } catch (error) {
+      console.error("Lỗi lưu sản phẩm:", error);
+      alert(error.response?.data?.message || error.message || "Không thể lưu sản phẩm");
+    } finally {
+      setSavingProduct(false);
+    }
   };
 
   const navItems = [
@@ -535,6 +550,12 @@ export default function AdminDashboard({ user, onBackToStore }) {
       icon: "local_cafe",
     },
     { id: "khach-hang", label: "Khách hàng", icon: "group" },
+    {
+      id: "cham-soc-khach-hang",
+      label: "Chăm sóc khách hàng",
+      icon: "support_agent",
+      badge: "Live",
+    },
     { id: "khuyen-mai", label: "Khuyến mãi", icon: "loyalty" },
     { id: "nhan-vien", label: "Nhân viên", icon: "badge" },
     { id: "cai-dat", label: "Cài đặt", icon: "settings" },
@@ -1708,6 +1729,11 @@ export default function AdminDashboard({ user, onBackToStore }) {
             <CustomerManagementTab user={user} />
           )}
 
+          {/* ===================== TAB CHĂM SÓC KHÁCH HÀNG (LIVE CHAT) ===================== */}
+          {activeTab === "cham-soc-khach-hang" && (
+            <CustomerCareTab user={user} />
+          )}
+
           {/* ===================== TAB QUẢN LÝ ĐƠN HÀNG ===================== */}
           {activeTab === "quan-ly-don-hang" && (
             <OrderManagementTab
@@ -1957,6 +1983,10 @@ export default function AdminDashboard({ user, onBackToStore }) {
                     {
                       id: "special",
                       label: `❄️ Đá xay Velvet Frost (${productsList.filter((p) => p.category === "special").length})`,
+                    },
+                    {
+                      id: "freshjuice",
+                      label: `🍊 Nước ép tươi (${productsList.filter((p) => p.category === "freshjuice").length})`,
                     },
                     {
                       id: "toppings",
@@ -2496,6 +2526,7 @@ export default function AdminDashboard({ user, onBackToStore }) {
                                   <option>Trà sữa &amp; Trà nướng</option>
                                   <option>Trà trái cây nhiệt đới</option>
                                   <option>Đá xay Velvet Frost</option>
+                                  <option>Nước ép tươi</option>
                                   <option>Topping thủ công</option>
                                 </select>
                               </div>
@@ -2750,10 +2781,11 @@ export default function AdminDashboard({ user, onBackToStore }) {
                             Hủy Bỏ
                           </button>
                           <button
-                            className="px-space-xl py-space-xs rounded-full bg-primary-container text-on-primary hover:bg-primary font-label-lg text-label-lg shadow-md hover:shadow-lg transition-all active:scale-95 border-0 cursor-pointer font-bold"
+                            className="px-space-xl py-space-xs rounded-full bg-primary-container text-on-primary hover:bg-primary font-label-lg text-label-lg shadow-md hover:shadow-lg transition-all active:scale-95 border-0 cursor-pointer font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                             type="submit"
+                            disabled={savingProduct}
                           >
-                            Lưu Sản Phẩm &amp; Xuất Bản
+                            {savingProduct ? "Đang Lưu..." : "Lưu Sản Phẩm & Xuất Bản"}
                           </button>
                         </div>
                       </div>
@@ -2768,7 +2800,8 @@ export default function AdminDashboard({ user, onBackToStore }) {
           {activeTab !== "dashboard" &&
             activeTab !== "khach-hang" &&
             activeTab !== "quan-ly-don-hang" &&
-            activeTab !== "quan-ly-san-pham" && (
+            activeTab !== "quan-ly-san-pham" &&
+            activeTab !== "cham-soc-khach-hang" && (
               <div className="bg-surface-container-lowest p-space-2xl rounded-2xl shadow-sm border border-outline-variant/30 text-center py-16">
                 <span className="material-symbols-outlined text-[48px] text-primary mb-3">
                   {navItems.find((n) => n.id === activeTab)?.icon || "layers"}

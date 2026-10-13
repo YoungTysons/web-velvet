@@ -16,6 +16,18 @@ const adminApi = {
   getTopSelling: (params) => {
     return axiosClient.get("/admin/stats/top-selling", { params });
   },
+  createProduct: (data) => {
+    return axiosClient.post("/admin/products", data);
+  },
+  updateProduct: (id, data) => {
+    return axiosClient.put(`/admin/products/${id}`, data);
+  },
+  deleteProduct: (id) => {
+    return axiosClient.delete(`/admin/products/${id}`);
+  },
+  getCustomers: (params) => {
+    return axiosClient.get("/admin/customers", { params });
+  },
 };
 
 export default adminApi;

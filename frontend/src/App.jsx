@@ -21,6 +21,7 @@ import CheckoutModal from "./components/checkout/CheckoutModal";
 import AdminDashboard from "./components/admin/AdminDashboard";
 import UserProfile from "./components/profile/UserProfile";
 import OrderHistory from "./components/profile/OrderHistory";
+import CustomerChatWidget from "./components/chat/CustomerChatWidget";
 
 function MainApp() {
   const { user, loading } = useAuth();
@@ -365,8 +366,10 @@ function MainApp() {
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
       />
-    </div>
 
+      {/* Widget Chat hỗ trợ trực tuyến & AI Bot bên Home */}
+      <CustomerChatWidget />
+    </div>
   );
 
 

@@ -98,13 +98,34 @@ async function main() {
     },
   ];
 
+  // 1. Seed Danh Mục (Categories)
+  console.log("📂 Đang nạp danh mục thức uống...");
+  const categoriesData = [
+    { id: 1, slug: "coffee", name: "Cà phê", icon: "☕", description: "12 món mộc & phin", displayOrder: 1 },
+    { id: 2, slug: "milktea", name: "Trà sữa", icon: "◉", description: "16 loại trà lá ủ", displayOrder: 2 },
+    { id: 3, slug: "fruittea", name: "Trà trái cây", icon: "✦", description: "Trái cây tươi Đà Lạt", displayOrder: 3 },
+    { id: 4, slug: "special", name: "Đá xay Frost", icon: "❄", description: "Cacao béo mượt", displayOrder: 4 },
+    { id: 5, slug: "freshjuice", name: "Nước ép tươi", icon: "◌", description: "Ép lạnh giữ vitamin", displayOrder: 5 },
+    { id: 6, slug: "toppings", name: "Topping thủ công", icon: "✣", description: "Nấu mới mỗi 4 giờ", displayOrder: 6 },
+  ];
+
+  const categoryMap = {};
+  for (const c of categoriesData) {
+    const saved = await prisma.category.upsert({
+      where: { slug: c.slug },
+      update: { name: c.name, icon: c.icon, description: c.description, displayOrder: c.displayOrder },
+      create: c,
+    });
+    categoryMap[saved.slug] = saved.id;
+  }
+
   const toppingsData = [
     { id: 1, name: "Trân châu đen mật mía", price: 5000 },
     { id: 2, name: "Trân châu hoàng kim dai giòn", price: 7000 },
     { id: 3, name: "Kem Cheese dẻo", price: 10000 },
   ];
 
-  // 1. Upsert toppings
+  // 2. Upsert toppings
   for (const t of toppingsData) {
     await prisma.topping.upsert({
       where: { id: t.id },
@@ -113,20 +134,25 @@ async function main() {
     });
   }
 
-  // 2. Upsert products and their sizes + toppings
+  // 3. Upsert products and their sizes + toppings
   for (const p of productsData) {
+    const categoryId = categoryMap[p.category] || null;
     await prisma.product.upsert({
       where: { id: p.id },
       update: {
         name: p.name,
         category: p.category,
+        categoryId: categoryId,
         description: p.description,
         basePrice: p.basePrice,
         image: p.image,
         isBestSeller: p.isBestSeller,
         isActive: p.isActive,
       },
-      create: p,
+      create: {
+        ...p,
+        categoryId: categoryId,
+      },
     });
 
     // Delete old sizes for this product
@@ -159,25 +185,6 @@ async function main() {
         },
       });
     }
-  }
-
-  // 3. Seed Danh Mục (Categories)
-  console.log("📂 Đang nạp danh mục thức uống...");
-  const categoriesData = [
-    { slug: "coffee", name: "Cà phê", icon: "☕", description: "12 món mộc & phin", displayOrder: 1 },
-    { slug: "milktea", name: "Trà sữa", icon: "◉", description: "16 loại trà lá ủ", displayOrder: 2 },
-    { slug: "fruittea", name: "Trà trái cây", icon: "✦", description: "Trái cây tươi Đà Lạt", displayOrder: 3 },
-    { slug: "special", name: "Đá xay Frost", icon: "❄", description: "Cacao béo mượt", displayOrder: 4 },
-    { slug: "freshjuice", name: "Nước ép tươi", icon: "◌", description: "Ép lạnh giữ vitamin", displayOrder: 5 },
-    { slug: "toppings", name: "Topping thủ công", icon: "✣", description: "Nấu mới mỗi 4 giờ", displayOrder: 6 },
-  ];
-
-  for (const c of categoriesData) {
-    await prisma.category.upsert({
-      where: { slug: c.slug },
-      update: { name: c.name, icon: c.icon, description: c.description, displayOrder: c.displayOrder },
-      create: c,
-    });
   }
 
   // 4. Seed Mã Khuyến Mãi (Vouchers)

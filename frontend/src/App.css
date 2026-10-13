@@ -689,6 +689,91 @@ h3 {
   border-radius: 20px;
   font-size: 11px;
 }
+
+/* ==================== PHÂN TRANG MENU TRANG CHỦ ==================== */
+.pagination-wrapper {
+  margin-top: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 24px;
+}
+.pagination-info {
+  font-size: 13px;
+  color: var(--muted);
+}
+.pagination-info strong {
+  color: var(--brown);
+  font-weight: 600;
+}
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  padding: 6px 10px;
+  border-radius: 30px;
+  box-shadow: 0 4px 16px rgba(67, 40, 35, 0.06);
+  border: 1px solid var(--sand);
+}
+.pagination-btn {
+  height: 38px;
+  min-width: 38px;
+  padding: 0 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--ink);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  border: 0;
+}
+.pagination-btn:hover:not(:disabled) {
+  background: var(--sand);
+  color: var(--brown);
+  transform: translateY(-1px);
+}
+.pagination-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+.pagination-number {
+  border-radius: 50%;
+  padding: 0;
+  width: 38px;
+}
+.pagination-number.active {
+  background: var(--brown);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 3px 10px rgba(67, 40, 35, 0.25);
+  transform: scale(1.08);
+}
+@media (max-width: 600px) {
+  .pagination-wrapper {
+    margin-top: 32px;
+  }
+  .pagination-controls {
+    gap: 4px;
+    padding: 4px 6px;
+  }
+  .pagination-btn {
+    height: 34px;
+    min-width: 34px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+  .pagination-number {
+    width: 34px;
+  }
+}
+
 .story-section {
   display: grid;
   grid-template-columns: 1fr 1fr;
