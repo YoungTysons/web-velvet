@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import "./App.css";
 
 import { fetchProducts } from "./api/productApi";
@@ -17,11 +17,25 @@ import CartDrawer from "./components/cart/CartDrawer";
 import AuthModal from "./components/auth/AuthModal";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider, useCart } from "./context/CartContext";
-import CheckoutModal from "./components/checkout/CheckoutModal";
-import AdminDashboard from "./components/admin/AdminDashboard";
-import UserProfile from "./components/profile/UserProfile";
-import OrderHistory from "./components/profile/OrderHistory";
-import CustomerChatWidget from "./components/chat/CustomerChatWidget";
+
+// Code splitting (Lazy loading) các phân hệ lớn
+const CheckoutModal = lazy(() => import("./components/checkout/CheckoutModal"));
+const AdminDashboard = lazy(() => import("./components/admin/AdminDashboard"));
+const UserProfile = lazy(() => import("./components/profile/UserProfile"));
+const OrderHistory = lazy(() => import("./components/profile/OrderHistory"));
+const CustomerChatWidget = lazy(() => import("./components/chat/CustomerChatWidget"));
+
+// Loading spinner nhẹ nhàng khi tải trang con
+function LoadingFallback() {
+  return (
+    <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem" }}>
+      <div style={{ width: "36px", height: "36px", border: "3px solid #e0d5cb", borderTopColor: "#5c3d2e", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+      <p style={{ marginTop: "0.75rem", fontSize: "14px", color: "#795548", fontFamily: "sans-serif" }}>
+        Đang tải...
+      </p>
+    </div>
+  );
+}
 
 function MainApp() {
   const { user, loading } = useAuth();
@@ -161,20 +175,22 @@ function MainApp() {
       );
     }
     return (
-      <AdminDashboard
-        user={user}
-        onBackToStore={() => {
-          window.location.hash = "";
-          setCurrentView("store");
-        }}
-      />
+      <Suspense fallback={<LoadingFallback />}>
+        <AdminDashboard
+          user={user}
+          onBackToStore={() => {
+            window.location.hash = "";
+            setCurrentView("store");
+          }}
+        />
+      </Suspense>
     );
   }
 
   // 4. KHI CHUYỂN SANG GIAO DIỆN THANH TOÁN (CHECKOUT)
   if (currentView === "checkout" || checkoutOpen) {
     return (
-      <>
+      <Suspense fallback={<LoadingFallback />}>
         <CheckoutModal
           isOpen={true}
           cart={cart}
@@ -218,14 +234,14 @@ function MainApp() {
           isOpen={authModalOpen}
           onClose={() => setAuthModalOpen(false)}
         />
-      </>
+      </Suspense>
     );
   }
 
   // 5. KHI CHUYỂN SANG GIAO DIỆN HỒ SƠ KHÁCH HÀNG (CUSTOMER PROFILE)
   if (currentView === "profile") {
     return (
-      <>
+      <Suspense fallback={<LoadingFallback />}>
         <UserProfile
           user={user}
           onBackToStore={() => {
@@ -252,14 +268,14 @@ function MainApp() {
           isOpen={authModalOpen}
           onClose={() => setAuthModalOpen(false)}
         />
-      </>
+      </Suspense>
     );
   }
 
   // 6. KHI CHUYỂN SANG GIAO DIỆN LỊCH SỬ TẤT CẢ ĐƠN HÀNG (ORDER HISTORY)
   if (currentView === "orders") {
     return (
-      <>
+      <Suspense fallback={<LoadingFallback />}>
         <OrderHistory
           user={user}
           onBackToStore={() => {
@@ -286,7 +302,7 @@ function MainApp() {
           isOpen={authModalOpen}
           onClose={() => setAuthModalOpen(false)}
         />
-      </>
+      </Suspense>
     );
   }
 
@@ -368,7 +384,9 @@ function MainApp() {
       />
 
       {/* Widget Chat hỗ trợ trực tuyến & AI Bot bên Home */}
-      <CustomerChatWidget />
+      <Suspense fallback={null}>
+        <CustomerChatWidget />
+      </Suspense>
     </div>
   );
 

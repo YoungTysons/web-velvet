@@ -1,11 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import logoIcon from "../../assets/logo-icon.png";
 import adminApi from "../../api/adminApi";
 import orderApi from "../../api/orderApi";
 import { fetchProducts } from "../../api/productApi";
-import CustomerManagementTab from "./tabs/CustomerManagementTab";
-import CustomerCareTab from "./tabs/CustomerCareTab";
-import OrderManagementTab from "./tabs/OrderManagementTab";
+
+const CustomerManagementTab = lazy(() => import("./tabs/CustomerManagementTab"));
+const CustomerCareTab = lazy(() => import("./tabs/CustomerCareTab"));
+const OrderManagementTab = lazy(() => import("./tabs/OrderManagementTab"));
+
+function TabLoading() {
+  return (
+    <div className="flex flex-col items-center justify-center p-12 text-center">
+      <div className="w-8 h-8 border-2 border-outline-variant/40 border-t-primary rounded-full animate-spin mb-2" />
+      <span className="text-xs text-on-surface-variant font-medium">Đang tải phân hệ...</span>
+    </div>
+  );
+}
 
 export default function AdminDashboard({ user, onBackToStore }) {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -1726,25 +1736,31 @@ export default function AdminDashboard({ user, onBackToStore }) {
 
           {/* ===================== TAB QUẢN LÝ KHÁCH HÀNG ===================== */}
           {activeTab === "khach-hang" && (
-            <CustomerManagementTab user={user} />
+            <Suspense fallback={<TabLoading />}>
+              <CustomerManagementTab user={user} />
+            </Suspense>
           )}
 
           {/* ===================== TAB CHĂM SÓC KHÁCH HÀNG (LIVE CHAT) ===================== */}
           {activeTab === "cham-soc-khach-hang" && (
-            <CustomerCareTab user={user} />
+            <Suspense fallback={<TabLoading />}>
+              <CustomerCareTab user={user} />
+            </Suspense>
           )}
 
           {/* ===================== TAB QUẢN LÝ ĐƠN HÀNG ===================== */}
           {activeTab === "quan-ly-don-hang" && (
-            <OrderManagementTab
-              orders={orders}
-              orderFilter={orderFilter}
-              setOrderFilter={setOrderFilter}
-              orderSearch={orderSearch}
-              setOrderSearch={setOrderSearch}
-              handleQuickStatus={handleQuickStatus}
-              setActiveTab={setActiveTab}
-            />
+            <Suspense fallback={<TabLoading />}>
+              <OrderManagementTab
+                orders={orders}
+                orderFilter={orderFilter}
+                setOrderFilter={setOrderFilter}
+                orderSearch={orderSearch}
+                setOrderSearch={setOrderSearch}
+                handleQuickStatus={handleQuickStatus}
+                setActiveTab={setActiveTab}
+              />
+            </Suspense>
           )}
 
           {/* ===================== TAB QUẢN LÝ SẢN PHẨM ===================== */}
